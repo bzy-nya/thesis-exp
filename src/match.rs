@@ -22,7 +22,41 @@ impl Match {
         }
     }
 
-    fn from_sat_greedy(sat: SAT) -> Self {
-        todo!()
+    fn from_sat_greedy(sat: &SAT) -> Self {
+        let mut edge = Vec::new();
+
+        let n = sat.size();
+        let mut choosed = crate::new_vector(n, false);
+
+
+        for u in 0..n { if !choosed[u] {
+            let mut candidate = None;
+            let mut mx = 0.0;
+            for v in (u + 1..n).filter( |&x| !choosed[x] ) {
+                let pairwise_pr = sat.pr_land(&[u,v].into() );
+                if mx < pairwise_pr {
+                    mx = pairwise_pr;
+                    candidate = Some(v);
+                }
+            }
+            match candidate {
+                Some(v) => {
+                    edge.push((u, v));
+                    choosed[u] = true;
+                    choosed[v] = true;
+                }
+                _ => {}
+            }
+        }}
+
+        Self{ edge }
+    }
+}
+
+impl IntoIterator for Match {
+    type Item = (usize, usize);
+    type IntoIter = std::vec::IntoIter<(usize, usize)>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.edge.into_iter()
     }
 }

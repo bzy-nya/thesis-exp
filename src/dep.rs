@@ -29,17 +29,19 @@ impl DependencyGraph {
             for v in c.collect_varible() {
                 for pre in &cache[v - 1] {
                     neighbor.insert(pre);
-                    let qwq: &mut Vec<usize> = &mut gamma[*pre];
-                    qwq.push(id);
                 }
             }
 
             max_d = max_d.max( neighbor.len() );
-            gamma.push(Vec::from_iter(neighbor.into_iter().map(|x| *x)));
             
-            for &pre in gamma.last().unwrap() {
+            for &&pre in &neighbor {
                 edge.push((pre, id));
+                let qwq : &mut Vec<usize> = &mut gamma[pre];
+                qwq.push(id);
             }
+
+            gamma.push(Vec::from_iter(neighbor.into_iter().map(|x| *x)));
+
             
             for v in c.collect_varible() {
                 cache[v - 1].insert(id);
@@ -53,11 +55,19 @@ impl DependencyGraph {
     }
 
     pub fn from_sat_with_match(sat: &SAT, mat: &Match) -> DependencyGraph {
-        todo!()
+        let mut dep = Self::form_sat(sat);
+        todo!();
+        dep
     }
 
-    pub fn get_dependency(&self, index: usize) -> Vec<usize> {
-        self.gamma[index].clone()
+    pub fn get_gamma(&self, index: usize) -> &Vec<usize> {
+        &self.gamma[index]
+    }
+
+    pub fn get_gamma_plus(&self, id: usize) -> Vec<usize> {
+        let mut ret = self.get_gamma(id).clone();
+        ret.push(id);
+        ret
     }
 }
 

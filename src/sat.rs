@@ -1,5 +1,7 @@
 use core::slice;
+use std::collections::BTreeSet;
 
+#[derive(Clone)]
 pub struct Clause {
     literal : Vec<isize>
 }
@@ -44,11 +46,11 @@ impl Clause {
     }
 }
 
-impl Clone for Clause {
-    fn clone(&self) -> Self {
-        Clause {
-            literal: self.literal.clone()
-        }
+impl<'a> IntoIterator for &'a Clause {
+    type Item = &'a isize;
+    type IntoIter = slice::Iter<'a, isize>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.literal.iter()
     }
 }
 
@@ -94,6 +96,17 @@ impl SAT {
 
     pub fn check_violated(&self, var: &Vec<bool>) -> Vec<bool> {
         self.clause.iter().map( |c| { Clause::check_violated(c, var) } ).collect()
+    }
+
+    pub fn pr_land( &self, clauses_id: &Vec<usize> ) -> f64 {
+        let mut set = BTreeSet::new();
+        for &c in clauses_id {
+            for &l in self.get_clause(c) {
+                if set.contains(&(-l)) { return 0.0 };
+                set.insert(l);
+            }
+        }
+        return 1.0 / (1 << set.len()) as f64
     }
 
     pub fn get_clause(&self, id: usize) -> &Clause {

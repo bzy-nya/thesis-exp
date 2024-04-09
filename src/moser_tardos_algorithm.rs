@@ -1,5 +1,5 @@
 use crate::sat::SAT;
-use crate::random_space::RandomSpace;
+use crate::random_space::{random_random_space, InfiniteRandomSpace, RandomSpace};
 use crate::dep::DependencyGraph;
 use std::collections::BTreeSet;
 
@@ -16,6 +16,7 @@ pub enum ExecuteResult<ResamplingType> {
 
 pub trait AlgorithmSimulator<R: RandomSpace> {
     type ResamplingType;
+    fn new(sat: SAT, random_space: R) -> Self;
     fn run_init(&mut self);
     fn run_next_step(&mut self) -> ExecuteResult<Self::ResamplingType>;
     fn run_until_terminal(&mut self) -> ExecuteResult<Self::ResamplingType> {
@@ -46,22 +47,13 @@ fn resampling<R>(var: &mut Vec<bool>, random_space: &mut R, list: Vec<usize> ) -
         if new_value == None { return Err(()); }
         var[v - 1] = new_value.unwrap();
     }
+    
     Ok(())
 }
 
 impl<R> MTsAlgorithmSimulator<R> 
     where R: RandomSpace
 {
-    pub fn new(sat: SAT, random_space: R) -> Self {
-        Self {
-            dependency_graph: DependencyGraph::form_sat(&sat),
-            varible: crate::new_vector( sat.variable_count(), false ),
-            violated_clause: BTreeSet::new(),
-            step: 0,
-            sat, random_space
-        }
-    }
-
     #[cfg(test)]
     pub fn get_varible(&self) -> &Vec<bool> {
         &self.varible
@@ -72,7 +64,19 @@ impl<R> AlgorithmSimulator<R> for MTsAlgorithmSimulator<R>
     where R: RandomSpace
 {
     type ResamplingType = usize;
+    fn new(sat: SAT, random_space: R) -> Self {
+        Self {
+            dependency_graph: DependencyGraph::form_sat(&sat),
+            varible: crate::new_vector( sat.variable_count(), false ),
+            violated_clause: BTreeSet::new(),
+            step: 0,
+            sat, random_space
+        }
+    }
+
     fn run_init(&mut self) {
+        self.step = 0;
+
         for v in self.varible.iter_mut() {
             *v = self.random_space.fetch_random_bit().unwrap();
         }
@@ -126,20 +130,17 @@ pub struct NewAlgorithmSimulator<R>
     inner: MTsAlgorithmSimulator<R>
 }
 
-impl<R> NewAlgorithmSimulator<R> 
-    where R: RandomSpace
-{
-    pub fn new(sat: SAT, random_space: R) -> Self {
-        Self {
-            inner: MTsAlgorithmSimulator::new(sat, random_space)
-        }
-    }
-}
-
 impl<R> AlgorithmSimulator<R> for NewAlgorithmSimulator<R> 
     where R: RandomSpace
 {
     type ResamplingType = Vec<usize>;
+
+    fn new(sat: SAT, random_space: R) -> Self {
+        Self {
+            inner: MTsAlgorithmSimulator::new(sat, random_space)
+        }
+    }
+
     fn run_init(&mut self) {
         self.inner.run_init()
     }
@@ -198,3 +199,46 @@ impl<R> Iterator for NewAlgorithmSimulator<R>
     }
 }
 
+#[derive(Debug)]
+pub enum BenchResult {
+    Failed,
+    Success {
+        mean: f64,
+        c99: f64,
+    }
+}
+
+pub fn bench_algorithm<A>(sat: &SAT, n: usize) -> BenchResult 
+    where A: AlgorithmSimulator<InfiniteRandomSpace>
+{
+    let mut sand_box = A::new(
+        sat.clone(), 
+        random_random_space()
+    );
+
+    let mut results = Vec::new();
+    
+    const LIMITS: usize = 10000000;
+
+    sand_box.run_init();
+    for _ in 0..LIMITS {
+        sand_box.run_next_step();
+    }
+    match sand_box.run_next_step() {
+        ExecuteResult::Running { .. } => { return BenchResult::Failed; }
+        _ => {}
+    }
+
+    for _ in 0..n {
+        sand_box.run_init();
+        match sand_box.run_until_terminal() {
+            ExecuteResult::Terminal { step } => { results.push(step as i32); }
+            _ => { return BenchResult::Failed; }
+        }
+    }
+
+    BenchResult::Success { 
+        mean: crate::mean(results.as_slice() ).unwrap() as f64, 
+        c99: 2.58 * crate::std_deviation(results.as_slice() ).unwrap() as f64 / (n as f64).sqrt()
+    }
+}

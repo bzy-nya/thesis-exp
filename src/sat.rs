@@ -49,6 +49,7 @@ impl Clause {
 impl<'a> IntoIterator for &'a Clause {
     type Item = &'a isize;
     type IntoIter = slice::Iter<'a, isize>;
+
     fn into_iter(self) -> Self::IntoIter {
         self.literal.iter()
     }
@@ -76,12 +77,15 @@ impl SAT {
         let k = vec[0].len();
         for v in &vec 
           { assert!( v.len() == k ); }
+        
         let mut set = std::collections::BTreeSet::new();
+        
         for v in &vec {
             for l in v {
                 set.insert(l.abs());
             }
         }
+        
         Self {
             n: vec.len(),
             m: set.len(),
@@ -100,12 +104,14 @@ impl SAT {
 
     pub fn pr_land( &self, clauses_id: &Vec<usize> ) -> f64 {
         let mut set = BTreeSet::new();
+        
         for &c in clauses_id {
             for &l in self.get_clause(c) {
                 if set.contains(&(-l)) { return 0.0 };
                 set.insert(l);
             }
         }
+        
         return 1.0 / (1 << set.len()) as f64
     }
 
@@ -129,6 +135,7 @@ impl std::fmt::Debug for SAT {
 impl<'a> IntoIterator for &'a SAT {
     type Item = &'a Clause;
     type IntoIter = slice::Iter<'a,Clause>;
+    
     fn into_iter(self) -> Self::IntoIter {
         self.clause.iter()
     }

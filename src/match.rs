@@ -1,3 +1,5 @@
+use core::slice;
+
 use crate::sat::SAT;
 
 pub struct Match {
@@ -5,7 +7,7 @@ pub struct Match {
 }
 
 impl Match {
-    fn from_random(n: usize) -> Self {
+    pub fn from_random(n: usize) -> Self {
         use rand::prelude::*;
 
         let mut rng = rand::thread_rng();
@@ -22,23 +24,24 @@ impl Match {
         }
     }
 
-    fn from_sat_greedy(sat: &SAT) -> Self {
+    pub fn from_sat_greedy(sat: &SAT) -> Self {
         let mut edge = Vec::new();
 
         let n = sat.size();
         let mut choosed = crate::new_vector(n, false);
 
-
         for u in 0..n { if !choosed[u] {
             let mut candidate = None;
             let mut mx = 0.0;
+
             for v in (u + 1..n).filter( |&x| !choosed[x] ) {
-                let pairwise_pr = sat.pr_land(&[u,v].into() );
+                let pairwise_pr = sat.pr_land( &[u,v].into() );
                 if mx < pairwise_pr {
                     mx = pairwise_pr;
                     candidate = Some(v);
                 }
             }
+
             match candidate {
                 Some(v) => {
                     edge.push((u, v));
@@ -56,7 +59,17 @@ impl Match {
 impl IntoIterator for Match {
     type Item = (usize, usize);
     type IntoIter = std::vec::IntoIter<(usize, usize)>;
+
     fn into_iter(self) -> Self::IntoIter {
         self.edge.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Match {
+    type Item = &'a (usize, usize);
+    type IntoIter = slice::Iter<'a, (usize, usize)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.edge.iter()
     }
 }

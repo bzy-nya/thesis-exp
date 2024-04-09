@@ -56,7 +56,16 @@ impl DependencyGraph {
 
     pub fn from_sat_with_match(sat: &SAT, mat: &Match) -> DependencyGraph {
         let mut dep = Self::form_sat(sat);
-        todo!();
+
+        for &(u, v) in mat {
+            let pr = sat.pr_land(&[u,v].into());
+            if pr == (0.5f64).powi((sat.clause_size() * 2) as i32) 
+              { continue; }
+            dep.p[u] -= pr * pr / 13.0;
+            dep.p[v] -= pr * pr / 13.0;
+        }
+
+        dep.max_p = crate::max_f64(&dep.p);
         dep
     }
 
@@ -68,6 +77,10 @@ impl DependencyGraph {
         let mut ret = self.get_gamma(id).clone();
         ret.push(id);
         ret
+    }
+
+    pub fn get_p(&self, id: usize) -> f64 {
+        self.p[id]
     }
 }
 

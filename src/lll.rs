@@ -9,6 +9,17 @@ pub enum PredictedResult {
     UpperBound(f64),
 }
 
+impl std::fmt::Display for PredictedResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            &Self::Invalid => { write!(f, "N/A") }
+            &Self::UpperBound(up) => {
+                write!(f, "{:.3}", up)
+            }
+        }
+    }
+}
+
 pub fn symmertric_lll_checker(dep: &DependencyGraph) -> PredictedResult {
     if E * dep.max_p * (dep.max_d as f64) < 1.0 {
         let a = dep.max_p * (1.0 + 1.0 / dep.max_d as f64).powi(dep.max_d as i32);
@@ -24,7 +35,7 @@ pub fn symmertric_lll_checker(dep: &DependencyGraph) -> PredictedResult {
 pub fn shearers_bound_checker(dep: &DependencyGraph) -> PredictedResult {
     // O(2^n * n) by using fmt
 
-    assert!( dep.n <= 20 );
+    if dep.n >= 20 { return PredictedResult::Invalid; }
 
     let n = dep.n;
 
@@ -69,11 +80,6 @@ pub fn shearers_bound_checker(dep: &DependencyGraph) -> PredictedResult {
             (0..n).map(|i| q[1 << i] ).sum::<f64>() / q[0]
         )
     }
-}
-
-#[cfg(test)]
-pub fn correlation_decay_checker(dep: &DependencyGraph) -> PredictedResult {
-    todo!()
 }
 
 pub fn satisfiability_checker(sat: &SAT) -> PredictedResult {

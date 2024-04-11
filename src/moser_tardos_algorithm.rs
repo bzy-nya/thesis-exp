@@ -242,3 +242,14 @@ pub fn bench_algorithm<A>(sat: &SAT, n: usize) -> BenchResult
         c99: 2.58 * crate::std_deviation(results.as_slice() ).unwrap() as f64 / (n as f64).sqrt()
     }
 }
+
+impl std::fmt::Display for BenchResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            &Self::Failed => { write!(f, "N/A, N/A") }
+            &Self::Success { mean, c99 } => {
+                write!(f, "{:.3},{:.3}", mean, mean + c99 )
+            }
+        }
+    }
+}

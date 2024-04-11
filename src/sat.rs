@@ -69,8 +69,15 @@ impl SAT {
         }
     }
 
-    pub fn from_file() -> Self {
-        todo!()
+    pub fn from_file(path: &str) -> Self {
+        let content = std::fs::read_to_string(path)
+            .expect("Should have been able to read the file");
+
+        let vec = content.split("\n").skip(1).map( 
+                |line| line.split(" ").map( |x| x.parse::<isize>().unwrap() ).collect()
+            ).collect();
+
+        Self::from_vec(vec)
     }
 
     pub fn from_vec(vec: Vec<Vec<isize>>) -> Self {

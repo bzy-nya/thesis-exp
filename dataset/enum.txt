@@ -1,0 +1,12 @@
+enum/enum1.sat
+enum/enum2.sat
+enum/enum3.sat
+enum/enum4.sat
+enum/enum5.sat
+enum/enum6.sat
+enum/enum7.sat
+enum/enum8.sat
+enum/enum9.sat
+enum/enum10.sat
+enum/enum11.sat
+enum/enum12.sat

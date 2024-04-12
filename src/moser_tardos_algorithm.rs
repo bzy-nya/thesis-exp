@@ -1,5 +1,5 @@
 use crate::sat::SAT;
-use crate::random_space::{random_random_space, InfiniteRandomSpace, RandomSpace};
+use crate::random_space::{random_random_space, random_space_of_nbits, InfiniteRandomSpace, LimitedRandomSpace, RandomSpace};
 use crate::dep::DependencyGraph;
 use std::collections::BTreeSet;
 
@@ -28,6 +28,8 @@ pub trait AlgorithmSimulator<R: RandomSpace> {
             }
         }
     }
+    fn is_terminal(&self) -> bool;
+    fn restart(&mut self, random_space: R);
 }
 
 pub struct MTsAlgorithmSimulator<R: RandomSpace> {
@@ -109,6 +111,14 @@ impl<R> AlgorithmSimulator<R> for MTsAlgorithmSimulator<R>
             }
         }
     }
+
+    fn is_terminal(&self) -> bool {
+        self.violated_clause.len() == 0
+    }
+
+    fn restart(&mut self, random_space: R) {
+        self.random_space = random_space;
+    }
 }
 
 impl<R> Iterator for MTsAlgorithmSimulator<R> 
@@ -184,6 +194,14 @@ impl<R> AlgorithmSimulator<R> for NewAlgorithmSimulator<R>
             }
         }
     }
+
+    fn is_terminal(&self) -> bool {
+        self.inner.is_terminal()
+    }
+
+    fn restart(&mut self, random_space: R) {
+        self.inner.restart(random_space)
+    }
 }
 
 impl<R> Iterator for NewAlgorithmSimulator<R> 
@@ -249,6 +267,64 @@ impl std::fmt::Display for BenchResult {
             &Self::Failed => { write!(f, "N/A, N/A") }
             &Self::Success { mean, c99 } => {
                 write!(f, "{:.3},{:.3}", mean, mean + c99 )
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum EnumResult {
+    Failed,
+    Success {
+        p: Vec<f64>
+    }
+}
+
+pub fn enum_algorithm<A>(sat: &SAT, turn: usize) -> EnumResult 
+    where A: AlgorithmSimulator<LimitedRandomSpace>
+{
+    let bits = sat.variable_count() * (turn + 1);
+    
+    if bits >= 25 { return EnumResult::Failed; }
+
+    let mut results = crate::new_vector(turn + 1, 0);
+
+    let mut sand_box = A::new(
+        sat.clone(), 
+        LimitedRandomSpace::new(0, 0)
+    );
+
+    for r in random_space_of_nbits(bits) {    
+        sand_box.restart(r);
+        sand_box.run_init();
+
+        if sand_box.is_terminal() { continue; }
+
+        results[0] += 1;
+
+        for i in 1..=turn {
+            match sand_box.run_next_step() {
+                ExecuteResult::RandomSpaceExceed => { return EnumResult::Failed; }
+                _ => {}
+            }
+            if sand_box.is_terminal() { break; }
+            results[i] += 1;
+        }
+
+    }
+
+    EnumResult::Success { 
+        p: results.into_iter().map(|x| x as f64 / (1 << bits) as f64).collect()
+    }
+}
+
+impl std::fmt::Display for EnumResult {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Failed => { write!(f, "N/A") }
+            Self::Success { p } => {
+                let s = p.iter().map( |x| format!("{:.3}", x) ).collect::<Vec<String>>().join(",");
+                write!(f, "{s}")
             }
         }
     }

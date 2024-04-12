@@ -36,6 +36,12 @@ impl<'a> IntoIterator for &'a DataSet {
     }
 }
 
+impl DataSet {
+    fn size(&self) -> usize {
+        self.data_names.len()
+    }
+}
+
 pub fn load_dataset(name: &str) -> DataSet {
     let path = format!("./dataset/{name}.txt");
     let content = std::fs::read_to_string(path)
@@ -46,10 +52,13 @@ pub fn load_dataset(name: &str) -> DataSet {
     }
 }
 
-pub fn bench(dataset: &DataSet, turn: usize) {
+pub fn bench(dataset: &DataSet, turn: usize, data_filter: &str) {
+    use crate::lll::PredictedResult;
+
     println!( "id, LLL, SHE, New, BF, MT mean, MT L995, New P-MT Mean, New P-MT L995" );
 
     for (id, sat) in dataset.into_iter().enumerate() {
+        eprintln!( "bench on data {}/{}", id + 1, dataset.size() );
 
         let mat = r#match::Match::from_sat_greedy(&sat);
         let dep = dep::DependencyGraph::form_sat(&sat);
@@ -60,8 +69,19 @@ pub fn bench(dataset: &DataSet, turn: usize) {
         let dep = dep::DependencyGraph::from_sat_with_match(&sat, &mat);
         let new = lll::shearers_bound_checker(&dep);
 
-
         let bf = lll::satisfiability_checker(&sat);
+
+        let skiped = match data_filter {
+            "lll" => { lll == PredictedResult::Invalid },
+            "she" => { she == PredictedResult::Invalid },
+            "new" => { new == PredictedResult::Invalid },
+            _ => {false}
+        };
+
+        if skiped {
+            println!("{id}, skiped");
+            continue;
+        }
 
         let mt = 
             moser_tardos_algorithm::bench_algorithm::<
@@ -78,5 +98,57 @@ pub fn bench(dataset: &DataSet, turn: usize) {
             >(&sat, turn);
         
         println!("{id},{lll},{she},{new},{bf},{mt},{pmt}")
+    }
+}
+
+pub fn enum_step(dataset: &DataSet, turn: usize, data_filter: &str) {
+    let str1 = (0..=turn).map( |x| format!("MT{x}") ).collect::<Vec<String>>().join(", ");
+    let str2 = (0..=turn).map( |x| format!("New{x}") ).collect::<Vec<String>>().join(", ");
+    println!( "id, LLL, SHE, New, BF, {str1}, {str2}" );
+
+    use crate::lll::PredictedResult;
+
+    for (id, sat) in dataset.into_iter().enumerate() {
+        eprintln!( "enum on data {}/{}", id + 1, dataset.size() );
+
+        let mat = r#match::Match::from_sat_greedy(&sat);
+        let dep = dep::DependencyGraph::form_sat(&sat);
+
+        let lll = lll::symmertric_lll_checker(&dep);
+        let she = lll::shearers_bound_checker(&dep);
+
+        let dep = dep::DependencyGraph::from_sat_with_match(&sat, &mat);
+        let new = lll::shearers_bound_checker(&dep);
+
+        let bf = lll::satisfiability_checker(&sat);
+
+        let skiped = match data_filter {
+            "lll" => { lll == PredictedResult::Invalid },
+            "she" => { she == PredictedResult::Invalid },
+            "new" => { new == PredictedResult::Invalid },
+            _ => {false}
+        };
+
+        if skiped {
+            println!("{id}, skiped");
+            continue;
+        }
+
+        let mt = 
+            moser_tardos_algorithm::enum_algorithm::<
+                moser_tardos_algorithm::MTsAlgorithmSimulator<
+                    random_space::LimitedRandomSpace
+                >
+            >(&sat, turn);
+
+        let pmt = 
+            moser_tardos_algorithm::enum_algorithm::<
+                moser_tardos_algorithm::NewAlgorithmSimulator<
+                    random_space::LimitedRandomSpace
+                >
+            >(&sat, turn);
+        
+        println!("{id},{lll},{she},{new},{bf},{mt},{pmt}")
+
     }
 }

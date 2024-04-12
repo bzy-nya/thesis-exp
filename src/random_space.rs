@@ -11,7 +11,7 @@ pub struct InfiniteRandomSpace {
 }
 
 impl InfiniteRandomSpace {
-    fn new(seed: usize) -> Self {
+    pub fn new(seed: usize) -> Self {
         Self { 
             rng: StdRng::seed_from_u64(seed as u64)
         }
@@ -38,7 +38,7 @@ pub struct LimitedRandomSpace {
 }
 
 impl LimitedRandomSpace {
-    fn new(seed: usize, limit: usize) -> Self {
+    pub fn new(seed: usize, limit: usize) -> Self {
         Self {
             pointer: 0, seed, limit
         }

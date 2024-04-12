@@ -20,6 +20,15 @@ impl std::fmt::Display for PredictedResult {
     }
 }
 
+impl PartialEq for PredictedResult {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (PredictedResult::Invalid, PredictedResult::Invalid) => {true},
+            _ => {false}
+        }
+    }
+}
+
 pub fn symmertric_lll_checker(dep: &DependencyGraph) -> PredictedResult {
     if E * dep.max_p * (dep.max_d as f64) < 1.0 {
         let a = dep.max_p * (1.0 + 1.0 / dep.max_d as f64).powi(dep.max_d as i32);

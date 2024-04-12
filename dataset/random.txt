@@ -1,2 +1,3 @@
 random/random1.sat
 random/random2.sat
+random/random3.sat

@@ -73,9 +73,14 @@ impl SAT {
         let content = std::fs::read_to_string(path)
             .expect("Should have been able to read the file");
 
-        let vec = content.split("\n").skip(1).map( 
-                |line| line.split(" ").map( |x| x.parse::<isize>().unwrap() ).collect()
-            ).collect();
+        let vec = content.split("\n").skip(1)
+            .map( |line| {
+                    line.split(" ")
+                        .map( |x| x.parse::<isize>().unwrap() )
+                        .filter( |&x| x != 0 )
+                        .collect()
+                } )
+            .collect();
 
         Self::from_vec(vec)
     }

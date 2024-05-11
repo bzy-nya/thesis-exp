@@ -8,5 +8,3 @@ enum/enum7.sat
 enum/enum8.sat
 enum/enum9.sat
 enum/enum10.sat
-enum/enum11.sat
-enum/enum12.sat

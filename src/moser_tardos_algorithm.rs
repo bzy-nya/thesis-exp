@@ -77,8 +77,6 @@ impl<R> AlgorithmSimulator<R> for MTsAlgorithmSimulator<R>
     }
 
     fn run_init(&mut self) {
-        self.step = 0;
-
         for v in self.varible.iter_mut() {
             *v = self.random_space.fetch_random_bit().unwrap();
         }
@@ -117,7 +115,9 @@ impl<R> AlgorithmSimulator<R> for MTsAlgorithmSimulator<R>
     }
 
     fn restart(&mut self, random_space: R) {
+        self.step = 0;
         self.random_space = random_space;
+        self.violated_clause.clear();
     }
 }
 
@@ -222,7 +222,7 @@ pub enum BenchResult {
     Failed,
     Success {
         mean: f64,
-        c99: f64,
+        sigma: f64,
     }
 }
 
@@ -248,6 +248,7 @@ pub fn bench_algorithm<A>(sat: &SAT, n: usize) -> BenchResult
     }
 
     for _ in 0..n {
+        sand_box.restart(random_random_space());
         sand_box.run_init();
         match sand_box.run_until_terminal() {
             ExecuteResult::Terminal { step } => { results.push(step as i32); }
@@ -257,7 +258,7 @@ pub fn bench_algorithm<A>(sat: &SAT, n: usize) -> BenchResult
 
     BenchResult::Success { 
         mean: crate::mean(results.as_slice() ).unwrap() as f64, 
-        c99: 2.58 * crate::std_deviation(results.as_slice() ).unwrap() as f64 / (n as f64).sqrt()
+        sigma: crate::std_deviation(results.as_slice() ).unwrap() as f64
     }
 }
 
@@ -265,8 +266,8 @@ impl std::fmt::Display for BenchResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             &Self::Failed => { write!(f, "N/A, N/A") }
-            &Self::Success { mean, c99 } => {
-                write!(f, "{:.3},{:.3}", mean, mean + c99 )
+            &Self::Success { mean, sigma } => {
+                write!(f, "{:.3},{:.3}", mean, sigma )
             }
         }
     }
@@ -285,7 +286,7 @@ pub fn enum_algorithm<A>(sat: &SAT, turn: usize) -> EnumResult
 {
     let bits = sat.variable_count() * (turn + 1);
     
-    if bits >= 25 { return EnumResult::Failed; }
+    if bits > 25 { return EnumResult::Failed; }
 
     let mut results = crate::new_vector(turn + 1, 0);
 
@@ -294,7 +295,8 @@ pub fn enum_algorithm<A>(sat: &SAT, turn: usize) -> EnumResult
         LimitedRandomSpace::new(0, 0)
     );
 
-    for r in random_space_of_nbits(bits) {    
+    for r in random_space_of_nbits(bits) {
+
         sand_box.restart(r);
         sand_box.run_init();
 
@@ -323,9 +325,29 @@ impl std::fmt::Display for EnumResult {
         match self {
             Self::Failed => { write!(f, "N/A") }
             Self::Success { p } => {
-                let s = p.iter().map( |x| format!("{:.3}", x) ).collect::<Vec<String>>().join(",");
+                let s = p.iter().map( |x| format!("{:.3}", x.log2()) ).collect::<Vec<String>>().join(",");
                 write!(f, "{s}")
             }
         }
     }
+}
+
+pub fn run_algorithm<A>(sat: &SAT) -> bool 
+    where A: AlgorithmSimulator<InfiniteRandomSpace>
+{
+    let mut sand_box = A::new(
+        sat.clone(), 
+        random_random_space()
+    );
+
+    sand_box.run_init();
+    for _ in 0..10000000 {
+        match sand_box.run_next_step() {
+            ExecuteResult::Terminal { .. } => { return true; }
+            ExecuteResult::RandomSpaceExceed => { return false; }
+            _ => {}
+        }
+    }
+
+    false
 }

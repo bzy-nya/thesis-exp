@@ -17,9 +17,19 @@ impl DependencyGraph {
         let n = sat.size();
         let mut edge  = Vec::new();
         let mut gamma = Vec::new();
-        let p = crate::new_vector(n, 1.0 / (1 << sat.clause_size()) as f64 );
+        let p = if sat.size() >= 100 {
+            crate::new_vector(n, 0.0 )
+        } else {
+            match sat.clause_size() {
+                0 => { sat.into_iter().map(|c| 1.0 / (1 << c.size()) as f64).collect() }
+                _ => { crate::new_vector(n, 1.0 / (1 << sat.clause_size()) as f64 ) }
+            }
+        };
         let mut max_d = 0;
-        let max_p = p[0];
+        let max_p = match sat.clause_size() {
+            0 => { crate::max_f64(&p) }
+            _ => { p[0] }
+        };
 
         let mut cache = crate::new_vector(sat.variable_count(), BTreeSet::new());
 
@@ -63,6 +73,21 @@ impl DependencyGraph {
               { continue; }
             dep.p[u] -= pr * pr / 13.0;
             dep.p[v] -= pr * pr / 13.0;
+        }
+
+        dep.max_p = crate::max_f64(&dep.p);
+        dep
+    }
+
+    pub fn from_sat_with_match_conjecture(sat: &SAT, mat: &Match) -> DependencyGraph {
+        let mut dep = Self::form_sat(sat);
+
+        for &(u, v) in mat {
+            let pr = sat.pr_land(&[u,v].into());
+            if pr == (0.5f64).powi((sat.clause_size() * 2) as i32) 
+              { continue; }
+            dep.p[u] -= pr * pr / 2.0;
+            dep.p[v] -= pr * pr / 2.0;
         }
 
         dep.max_p = crate::max_f64(&dep.p);

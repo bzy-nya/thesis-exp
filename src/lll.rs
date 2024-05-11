@@ -44,7 +44,7 @@ pub fn symmertric_lll_checker(dep: &DependencyGraph) -> PredictedResult {
 pub fn shearers_bound_checker(dep: &DependencyGraph) -> PredictedResult {
     // O(2^n * n) by using fmt
 
-    if dep.n >= 20 { return PredictedResult::Invalid; }
+    if dep.n > 20 { return PredictedResult::Invalid; }
 
     let n = dep.n;
 
@@ -61,12 +61,12 @@ pub fn shearers_bound_checker(dep: &DependencyGraph) -> PredictedResult {
         q[x] = pre;
 
         for npt in pt..n { if vis[npt] == 0 {
-            for d in dep.get_gamma_plus(pt)
+            for d in dep.get_gamma_plus(npt)
               { vis[d] += 1; }
 
             dfs( q, vis, dep, n, x | (1 << npt), npt + 1, pre * dep.get_p(npt) );
 
-            for d in dep.get_gamma_plus(pt)
+            for d in dep.get_gamma_plus(npt)
               { vis[d] -= 1; }
         } }
     }
@@ -95,6 +95,8 @@ pub fn satisfiability_checker(sat: &SAT) -> PredictedResult {
     use crate::random_space::random_space_of_nbits;
 
     let m = sat.variable_count();
+
+    if m > 20 { return PredictedResult::Invalid; }
 
     let solution: usize = random_space_of_nbits(m)
         .map(|r| {

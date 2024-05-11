@@ -21,7 +21,7 @@ impl Clause {
     } 
 
     pub fn from_vec(v: Vec<isize>) -> Self {
-        Self { literal: v }
+        Self { literal: v.into_iter().filter(|&x| x != 0).collect() }
     }
 
     pub fn from_array<const L: usize>(array: [isize; L]) -> Self {
@@ -74,6 +74,7 @@ impl SAT {
             .expect("Should have been able to read the file");
 
         let vec = content.split("\n").skip(1)
+            .filter(|&line| {line != ""} )
             .map( |line| {
                     line.split(" ")
                         .map( |x| x.parse::<isize>().unwrap() )
@@ -86,21 +87,24 @@ impl SAT {
     }
 
     pub fn from_vec(vec: Vec<Vec<isize>>) -> Self {
-        let k = vec[0].len();
+        let mut k = vec[0].len();
         for v in &vec 
-          { assert!( v.len() == k ); }
+          { if v.len() != k {k = 0;} }
         
+        if vec[0].ends_with(&[0]) && k != 0
+          { k -= 1 }
+
         let mut set = std::collections::BTreeSet::new();
         
         for v in &vec {
             for l in v {
-                set.insert(l.abs());
+                if *l != 0 { set.insert(l.abs()); }
             }
         }
         
         Self {
             n: vec.len(),
-            m: set.len(),
+            m: set.len().max( *set.iter().max().unwrap() as usize ),
             k,
             clause: vec.into_iter().map( Clause::from_vec ).collect()
         }
@@ -115,6 +119,8 @@ impl SAT {
     }
 
     pub fn pr_land( &self, clauses_id: &Vec<usize> ) -> f64 {
+        if self.size() >= 1000 
+            { return 0.0; }
         let mut set = BTreeSet::new();
         
         for &c in clauses_id {

@@ -2,4 +2,4 @@
 /.vscode
 exp
 *.csv
-/dataset/satc2023/*.xz
+/dataset/satc2023/*.cnf
